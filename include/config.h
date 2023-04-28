@@ -28,6 +28,8 @@ struct BorderConditions {
 struct TaskParameters {
     HoleOptions hole;
     BorderConditions border;
+
+    static TaskParameters GenerateForVariant(size_t variant);
 };
 
 } // namespace config

@@ -1,10 +1,12 @@
+#include "Solver.h"
 #include <iostream>
 
-#include <config.h>
-
 int main() {
-    int var;
-    std::cin >> var;
+    Mesh m = {500, 500, 1};
+    auto s = Solver{std::move(m)};
 
-    const auto foo = config::TaskParameters::GenerateForVariant(var);
+    for(int i = 0; i < Solver::SizeT - 1; i++)
+        s.solveNextLayer();
+
+    std::cout << s;
 }

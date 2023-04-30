@@ -2,7 +2,7 @@
 
 #include "EnumBitmask.h"
 
-enum class ObjectBounds : int {
+enum class ObjectBound : int {
     Empty = 0,
     L = 1,
     R = 2,
@@ -16,9 +16,11 @@ enum class ObjectBounds : int {
     Inner = 512
 };
 
-DEFINE_BITMASK_OPERATORS(ObjectBounds)
+namespace ObjectBounds {
+using namespace EnumBitmask;
 
-static constexpr ObjectBounds ObjectEx =
-    ObjectBounds::L | ObjectBounds::R | ObjectBounds::T | ObjectBounds::B | ObjectBounds::R2;
-static constexpr ObjectBounds ObjectIn = ObjectBounds::S | ObjectBounds::R1;
-static constexpr ObjectBounds Outer = ObjectBounds::CircleOuter | ObjectBounds::SquareOuter;
+static constexpr ObjectBound Ex =
+    ObjectBound::L | ObjectBound::R | ObjectBound::T | ObjectBound::B | ObjectBound::R2;
+static constexpr ObjectBound In = ObjectBound::S | ObjectBound::R1;
+static constexpr ObjectBound Outer = ObjectBound::CircleOuter | ObjectBound::SquareOuter;
+} // namespace ObjectBounds

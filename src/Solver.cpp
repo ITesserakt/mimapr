@@ -2,19 +2,29 @@
 
 #include "Solver.h"
 
-Solver::Solver(Mesh &&mesh) : step(mesh.step), params(mesh.params) {
+Solver::Solver(Mesh &&mesh, const config::Constants &consts)
+    : step(mesh.step), params(mesh.params), SizeT(consts.TimeLayers),
+      dt(consts.DeltaTime) {
     const auto &meshMatrix = mesh.nodes;
     const auto rows = meshMatrix.rows();
     const auto cols = meshMatrix.cols();
-    T.resize(rows, cols, SizeT);
+    T.resize(2);
 
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++)
-            for (int time = 0; time < SizeT; time++)
-                T(i, j, time) = meshMatrix(i, j);
+    for (int time = 0; time < 2; time++) {
+        T(time).resize(rows, cols);
+        for (int i = 0; i < rows; i++)
+            for (int j = 0; j < cols; j++) {
+                auto &node = T(time)(i, j);
+                auto &meshNode = meshMatrix(i, j);
+                node.part = meshNode.part;
+                node.lambdaMu = meshNode.lambdaMu;
+                if (time == 0)
+                    node.t = meshNode.t;
+            }
+    }
 }
 
-void Solver::explicitCentralDifference(const Index &index, int time) {
+double Solver::explicitCentralDifference(const Index &index) {
     /**
      *     E
      *     |
@@ -22,21 +32,22 @@ void Solver::explicitCentralDifference(const Index &index, int time) {
      *     |
      *     D
      */
-    const auto &A = T(index.x(), index.y(), time);
-    const auto &B = T(index.x() - 1, index.y(), time);
-    const auto &C = T(index.x() + 1, index.y(), time);
-    const auto &D = T(index.x(), index.y() - 1, time);
-    const auto &E = T(index.x(), index.y() + 1, time);
+    const auto &A = T(0)(index.x(), index.y());
+    const auto &B = T(0)(index.x() - 1, index.y());
+    const auto &C = T(0)(index.x() + 1, index.y());
+    const auto &D = T(0)(index.x(), index.y() - 1);
+    const auto &E = T(0)(index.x(), index.y() + 1);
 
     double dx = step;
     double dy = step;
 
-    auto &node = T(index.x(), index.y(), time + 1);
-    node.t = dt * ((C.t - 2 * A.t + B.t) / dx / dx + (E.t - 2 * A.t + D.t) / dy / dy) + A.t;
+    return dt * ((C.t - 2 * A.t + B.t) / dx / dx +
+                 (E.t - 2 * A.t + D.t) / dy / dy) +
+           A.t;
 }
 
-void Solver::applyBorderConvection(const Index &index, int time) {
-    auto &node = T(index.x(), index.y(), time);
+double Solver::applyBorderConvection(const Index &index) {
+    const auto &node = T(0)(index.x(), index.y());
     Eigen::Vector2d antiNormal = -getNormalToBorder(index, node);
     Eigen::Vector4i indexes = {index.x(), index.y(), index.x(), index.y()};
 
@@ -50,47 +61,69 @@ void Solver::applyBorderConvection(const Index &index, int time) {
         indexes.z() = index.x() + 1;
 
     double dx = step, dy = step;
-    Eigen::Vector2d gradient = {
-        (T(indexes.x(), index.y(), time).t - T(indexes.z(), index.y(), time).t) / dx,
-        (T(index.x(), indexes.y(), time).t - T(index.x(), indexes.w(), time).t) / dy
-    };
+    auto gradX =
+        (T(0)(indexes.x(), index.y()).t - T(0)(indexes.z(), index.y()).t) / dx;
+    auto gradY =
+        (T(0)(index.x(), indexes.y()).t - T(0)(index.x(), indexes.w()).t) / dy;
 
-    node.t = gradient.dot(-antiNormal);
+    Eigen::Vector2d gradient = {gradX, gradY};
+
+    return gradient.dot(-antiNormal);
 }
 
 Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node &node) const {
     Eigen::Vector2d normal;
 
-    if (node.part == ObjectBounds::L)
+    if (node.part == ObjectBound::L)
         normal = {-1, 0};
-    if (node.part == ObjectBounds::R)
+    if (node.part == ObjectBound::R)
         normal = {1, 0};
-    if (node.part == ObjectBounds::T)
+    if (node.part == ObjectBound::T)
         normal = {0, 1};
-    if (node.part == ObjectBounds::B)
+    if (node.part == ObjectBound::B)
         normal = {0, -1};
-    if (node.part == ObjectBounds::R2)
-        normal = -Eigen::Vector2d{350 - index.x() * step, 250 - index.y() * step}.normalized();
-    if (node.part == ObjectBounds::R1)
-        normal = (params.hole.center - Eigen::Vector2d{index.x() * step, index.y() * step}).normalized();
-    if (node.part == ObjectBounds::S) {
-        Eigen::Vector2d vec = (params.hole.center - Eigen::Vector2d{index.x() * step, index.y() * step});
-        normal = vec.x() > vec.y() ? Eigen::Vector2d{0, vec.y()} : Eigen::Vector2d{vec.x(), 0};
-        normal.normalize();
+    if (node.part == ObjectBound::R2)
+        normal =
+            -Eigen::Vector2d{350. - index.x() * step, 250. - index.y() * step};
+    if (node.part == ObjectBound::R1)
+        normal = (params.hole.center -
+                  Eigen::Vector2d{index.x() * step, index.y() * step});
+    if (node.part == ObjectBound::S) {
+        Eigen::Vector2d vec =
+            (params.hole.center -
+             Eigen::Vector2d{index.x() * step, index.y() * step});
+        normal = vec.x() > vec.y() ? Eigen::Vector2d{0, vec.y()}
+                                   : Eigen::Vector2d{vec.x(), 0};
     }
 
-    return normal;
+    return normal.normalized();
+}
+
+double Solver::applyBorderInsulation(const Index &index) {
+    return T(0)(index.x(), index.y()).t;
 }
 
 std::ostream &operator<<(std::ostream &os, const Solution &solution) {
-    auto dims = solution.timeMesh.dimensions();
+    auto timeSize = solution.timeMesh.size();
+    auto rowsSize = solution.timeMesh(0).rows();
+    auto colsSize = solution.timeMesh(0).cols();
 
-    for (int time = 0; time < dims[2]; time++)
-        for (int row = 0; row < dims[0]; row++)
-            for (int col = 0; col < dims[1]; col++) {
-                const auto &node = solution.timeMesh(row, col, time);
-                os << time << " " << row * solution.step << " " << col * solution.step << " " << node.t << std::endl;
+    os << "t x y T" << std::endl;
+
+    for (int time = 0; time < timeSize; time++)
+        for (int row = 0; row < rowsSize; row++)
+            for (int col = 0; col < colsSize; col++) {
+                const auto &node = solution.timeMesh(time)(row, col);
+                os << time << " " << row * solution.step << " "
+                   << col * solution.step << " " << node.t << std::endl;
             }
 
     return os;
+}
+
+Solution Solution::useOnlyTimeLayer(int layer) {
+    Tensor3<Node> specificLayer;
+    specificLayer.resize(1);
+    specificLayer(0) = timeMesh(layer);
+    return Solution{specificLayer, step};
 }

@@ -1,15 +1,21 @@
 #pragma once
 
 #include <ostream>
-#include <unsupported/Eigen/CXX11/Tensor>
+#if USE_OPEN_MP
+#include <omp.h>
+#endif
 
 #include "mesh.h"
 
+template <typename T> using Tensor3 = Eigen::VectorX<Eigen::MatrixX<T>>;
+
 struct Solution {
-    Eigen::Tensor<Node, 3> timeMesh;
+    Tensor3<Node> timeMesh;
     double step;
 
     friend std::ostream &operator<<(std::ostream &os, const Solution &solution);
+
+    Solution useOnlyTimeLayer(int layer);
 };
 
 enum class Method { Explicit, Implicit };
@@ -18,46 +24,60 @@ class Solver {
     using Index = Eigen::Vector2i;
 
   private:
-    Eigen::Tensor<Node, 3> T;
+    Tensor3<Node> T;
     double step;
     config::TaskParameters params;
+    int SizeT;
+    double dt;
 
-    void explicitCentralDifference(const Index &index, int time);
-    void implicitCentralDifference(int time);
-    void applyBorderConvection(const Index &index, int time);
+    double explicitCentralDifference(const Index &index);
+    double applyBorderConvection(const Index &index);
+    double applyBorderInsulation(const Index &index);
+    void implicitCentralDifference();
 
-    template <Method Type> void solveNextLayer(int time) {
+    template <Method Type> void solveNextLayer() {
+        using namespace EnumBitmask;
+
         if constexpr (Type == Method::Implicit) {
-            implicitCentralDifference(time);
+            implicitCentralDifference();
             return;
         }
 
-        auto rows = T.dimension(0);
-        auto cols = T.dimension(1);
+        auto rows = T(0).rows();
+        auto cols = T(0).cols();
 
         for (int i = 0; i < rows; i++)
             for (int j = 0; j < cols; j++) {
-                const auto &node = T(i, j, time);
-                if ((node.part & params.border.Convection) == node.part)
-                    applyBorderConvection({i, j}, time);
-                else if ((node.part & params.border.Heat) == node.part || (node.part & ObjectBounds::R2) == node.part)
-                    continue;
-                else if ((node.part & Outer) != node.part)
-                    explicitCentralDifference({i, j}, time);
+                auto &node = T(1)(i, j);
+                if (EnumBitmask::contains(params.border.Heat, node.part) || node.part == ObjectBound::R2) {
+                    node.t = 100;
+                    if (node.part == ObjectBound::R2)
+                        node.t = 200;
+                }
+                else if (EnumBitmask::contains(params.border.Convection, node.part))
+                    node.t = applyBorderConvection({i, j});
+                else if (EnumBitmask::contains(params.border.ThermalInsulation, node.part))
+                    node.t = applyBorderInsulation({i, j});
+                else if (!EnumBitmask::contains(ObjectBounds::Outer, node.part))
+                    node.t = explicitCentralDifference({i, j});
             }
+
+        for (int i = 0; i < rows; i++)
+            for(int j = 0; j < cols; j++)
+                T(0)(i, j).t = T(1)(i, j).t;
     }
 
   public:
-    explicit Solver(Mesh &&mesh);
+    Solver(Mesh &&mesh, const config::Constants &consts);
 
     template <Method Type = Method::Explicit> Solution solve() {
-        for (int currentTime = 1; currentTime < SizeT - 1; currentTime++)
-            solveNextLayer<Type>(currentTime);
+#pragma omp parallel for
+        for (int currentTime = 0; currentTime < SizeT - 1; currentTime++)
+            solveNextLayer<Type>();
 
         return {T, step};
     }
 
-    static constexpr int SizeT = 1000;
-    static constexpr double dt = 0.9;
-    [[nodiscard]] Eigen::Vector2d getNormalToBorder(const Index &index, const Node &node) const;
+    [[nodiscard]] Eigen::Vector2d getNormalToBorder(const Index &index,
+                                                    const Node &node) const;
 };

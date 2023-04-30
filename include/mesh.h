@@ -1,12 +1,10 @@
 #pragma once
 
-#include <Eigen/Dense>
-
 #include "config.h"
 
 struct Node {
     double t = 0.;
-    ObjectBounds part = ObjectBounds::Empty;
+    ObjectBound part = ObjectBound::Empty;
     Eigen::Vector2d lambdaMu = {0, 0};
 };
 
@@ -14,7 +12,7 @@ class Mesh {
     friend class Solver;
 
   private:
-    Eigen::Matrix<Node, Eigen::Dynamic, Eigen::Dynamic> nodes;
+    Eigen::MatrixX<Node> nodes;
 
     config::TaskParameters params;
 
@@ -22,22 +20,23 @@ class Mesh {
     int x_count;
     int y_count;
 
+    double R2;
+    double H;
+    double W;
+    double R1;
+    double S;
+
+    double X_R2_CENTER = W - R2;
+    double Y_R2_CENTER = H - R2;
+
     void nodeTypesInit();
 
-    ObjectBounds shape(double x, double y);
-
-    void updateOnBorders(ObjectBounds &left, ObjectBounds &right) const;
+    ObjectBound shape(double x, double y);
 
     void initHeatBorderConditions();
 
   public:
-    Mesh(const config::TaskParameters &params, double step);
+    Mesh(const config::TaskParameters &params, const config::Constants& consts);
 
-    static constexpr double R2 = 150;
-    static constexpr double H = 400;
-    static constexpr double W = 500;
-    static constexpr double R1 = 50;
-    static constexpr double S = 100;
     void print_node_types();
-    void print_short(ObjectBounds type);
 };

@@ -53,18 +53,22 @@ class Solver {
                     node.t = 100;
                     if (node.part == ObjectBound::R2)
                         node.t = 200;
-                }
-                else if (EnumBitmask::contains(params.border.Convection, node.part))
+                } else if (EnumBitmask::contains(params.border.Convection,
+                                                 node.part))
                     node.t = applyBorderConvection({i, j});
-                else if (EnumBitmask::contains(params.border.ThermalInsulation, node.part))
+                else if (EnumBitmask::contains(params.border.ThermalInsulation,
+                                               node.part))
                     node.t = applyBorderInsulation({i, j});
                 else if (!EnumBitmask::contains(ObjectBounds::Outer, node.part))
                     node.t = explicitCentralDifference({i, j});
             }
 
-        for (int i = 0; i < rows; i++)
-            for(int j = 0; j < cols; j++)
-                T(0)(i, j).t = T(1)(i, j).t;
+#pragma omp critical
+        {
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < cols; j++)
+                    T(0)(i, j).t = T(1)(i, j).t;
+        }
     }
 
   public:

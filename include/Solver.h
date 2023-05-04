@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <iomanip>
 #if USE_OPEN_MP
 #include <omp.h>
 #endif
@@ -13,8 +14,6 @@ struct Solution {
     Tensor3<double> timeMesh;
     double step;
 };
-
-enum class Method { Explicit, Implicit };
 
 class Solver {
     using Index = Eigen::Vector2i;
@@ -32,17 +31,17 @@ class Solver {
     double applyBorderInsulation(const Index &index);
     void implicitCentralDifference();
 
-    template <Method Type> void solveNextLayer();
+    template <config::SolvingMethod Type> void solveNextLayer();
 
   public:
     Solver(Mesh &&mesh, const config::Constants &consts);
 
-    template <Method Type = Method::Explicit> Solution solve();
+    template <config::SolvingMethod Type = config::SolvingMethod::Explicit> Solution solve();
 
     [[nodiscard]] Eigen::Vector2d getNormalToBorder(const Index &index, const Node &node) const;
 };
 
-template <Method Type> void Solver::solveNextLayer() {
+template <config::SolvingMethod Type> void Solver::solveNextLayer() {
     using namespace EnumBitmask;
 
     auto rows = T(0).rows();
@@ -60,11 +59,11 @@ template <Method Type> void Solver::solveNextLayer() {
             else if (EnumBitmask::contains(params.border.ThermalInsulation, node.part))
                 node.t = applyBorderInsulation({i, j});
             else if (!EnumBitmask::contains(ObjectBounds::Outer, node.part))
-                if constexpr (Type == Method::Explicit)
+                if constexpr (Type == config::SolvingMethod::Explicit)
                     node.t = explicitCentralDifference({i, j});
         }
 
-    if constexpr (Type == Method::Implicit)
+    if constexpr (Type == config::SolvingMethod::Implicit)
         implicitCentralDifference();
 
     for (int i = 0; i < rows; i++)
@@ -72,10 +71,24 @@ template <Method Type> void Solver::solveNextLayer() {
             T(0)(i, j).t = T(1)(i, j).t;
 }
 
-template <Method Type> Solution Solver::solve() {
+template <config::SolvingMethod Type> Solution Solver::solve() {
+    int barWidth = 50;
+    float progress = 0;
+    std::cout << std::fixed << std::setprecision(2);
     for (int currentTime = 0; currentTime < SizeT - 1; currentTime++) {
         if (SavedTemperatures.size() != 1)
             SavedTemperatures(currentTime) = T(0).cast<double>();
+
+        std::cout << "[";
+        int pos = barWidth * progress;
+        for (int i = 0; i < barWidth; i++) {
+            if (i < pos) std::cout << "=";
+            else if (i == pos) std::cout << ">";
+            else std::cout << " ";
+        }
+        std::cout << "] " << progress * 100.f << "%\r";
+        std::cout.flush();
+        progress += 1.0f / (SizeT - 1);
 
         solveNextLayer<Type>();
     }

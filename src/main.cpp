@@ -24,7 +24,7 @@ void process_solution(const config::Constants &constants, const Solution &soluti
         for (int i = 0; i < solution.timeMesh(0).rows(); i++)
             for (int j = 0; j < solution.timeMesh(0).cols(); j++) {
                 auto weight = (float) solution.timeMesh(0)(i, j);
-                writer.addPoint(i * solution.step, j * solution.step, std::abs(weight));
+                writer.addPoint(i * solution.step, constants.Height - j * solution.step, std::abs(weight));
             }
         std::cerr << "Heatmap populated, generating image" << std::endl;
         {
@@ -45,7 +45,7 @@ void process_solution(const config::Constants &constants, const Solution &soluti
             for (int i = 0; i < solution.timeMesh(0).rows(); i++)
                 for (int j = 0; j < solution.timeMesh(0).cols(); j++)
                     std::cout << time << " " << i * solution.step << " " << j * solution.step << " "
-                              << solution.timeMesh(time) << std::endl;
+                              << solution.timeMesh(time)(i, j) << std::endl;
         break;
     case config::RenderKind::RenderGif:
         break;
@@ -66,7 +66,11 @@ int main() {
     auto solver = Solver{std::move(mesh), constants};
     std::cerr << "Mesh created. Solving linear systems..." << std::endl;
 
-    auto solution = solver.solve();
+    Solution solution;
+    if (constants.SolveMethod == config::SolvingMethod::Explicit)
+        solution = solver.solve<config::SolvingMethod::Explicit>();
+    else
+        solution = solver.solve<config::SolvingMethod::Implicit>();
     std::cerr << "Successfully calculated solution" << std::endl;
 
     process_solution(constants, solution);

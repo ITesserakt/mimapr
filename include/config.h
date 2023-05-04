@@ -33,6 +33,7 @@ struct TaskParameters {
 };
 
 enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast };
+enum class SolvingMethod { Explicit, Implicit };
 
 struct Constants {
     int TimeLayers = 100;
@@ -45,8 +46,9 @@ struct Constants {
     int Variant = 1;
     double GridStep = 5;
     RenderKind RenderKind = RenderKind::OutputLast;
+    SolvingMethod SolveMethod = SolvingMethod::Explicit;
 
-    bool isDefault() const;
+    [[nodiscard]] bool isDefault() const;
 
     bool operator==(const Constants &rhs) const;
     bool operator!=(const Constants &rhs) const;
@@ -60,10 +62,8 @@ using namespace config;
 template <> struct convert<config::Constants> {
     static Node encode(const Constants &rhs) {
         Node node;
-        Constants default_constants;
 
 #define IfNotDefault(field, name)                                              \
-    if (rhs.field != default_constants.field)                                  \
     node[name] = rhs.field
 
         IfNotDefault(Variant, "variant");
@@ -76,6 +76,7 @@ template <> struct convert<config::Constants> {
         IfNotDefault(Radius1, "hole_radius");
         IfNotDefault(SquareSide, "square_size");
         IfNotDefault(RenderKind, "render_kind");
+        IfNotDefault(SolveMethod, "solving_method");
         return node;
 
 #undef IfNotDefault
@@ -92,6 +93,7 @@ template <> struct convert<config::Constants> {
         rhs.Radius1 = node["radius_hole"].as<double>(rhs.Radius1);
         rhs.SquareSide = node["square_size"].as<double>(rhs.SquareSide);
         rhs.RenderKind = node["render_kind"].as<RenderKind>(rhs.RenderKind);
+        rhs.SolveMethod = node["solving_method"].as<SolvingMethod>(rhs.SolveMethod);
 
         return true;
     }
@@ -103,7 +105,6 @@ template <> struct convert<RenderKind> {
             return false;
 
         auto value = node.as<std::string>();
-        std::transform(value.begin(), value.end(), value.begin(), [](const auto &c) { return std::tolower(c); });
         if (value == "output all")
             kind = config::RenderKind::OutputAll;
         else if (value == "output last")
@@ -129,6 +130,32 @@ template <> struct convert<RenderKind> {
             node = "render last";
         else if (kind == config::RenderKind::RenderGif)
             node = "render all";
+
+        return node;
+    }
+};
+
+template <> struct convert<SolvingMethod> {
+    static bool decode(const Node &node, SolvingMethod &method) {
+        if (!node.IsScalar())
+            return false;
+
+        auto value = node.as<std::string>();
+        if (value == "explicit")
+            method = config::SolvingMethod::Explicit;
+        else if (value == "implicit")
+            method = config::SolvingMethod::Implicit;
+        else
+            return false;
+        return true;
+    }
+
+    static Node encode(const SolvingMethod &method) {
+        Node node;
+        if (method == config::SolvingMethod::Explicit)
+            node = "explicit";
+        else if (method == config::SolvingMethod::Implicit)
+            node = "implicit";
 
         return node;
     }

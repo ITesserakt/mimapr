@@ -30,7 +30,7 @@ void process_solution(const config::Constants &constants, const Solution &soluti
         std::cerr << "Heatmap populated, generating image" << std::endl;
         {
             std::ofstream output{"image.png", std::ios::out | std::ios::binary};
-            output << writer.write((heatmap_colorscheme_t*) heatmap_cs_Spectral_mixed);
+            output << writer.write(heatmap_cs_Spectral_mixed);
         }
         break;
     case config::RenderKind::OutputLast:

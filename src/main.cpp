@@ -42,7 +42,7 @@ void process_solution(const config::Constants &constants, const Solution &soluti
         break;
     case config::RenderKind::OutputAll:
         std::cout << "t x y T" << std::endl;
-        for (int time = 0; time < constants.TimeLayers; time++)
+        for (int time = 0; time < constants.TimeLayers - 1; time++)
             for (int i = 0; i < solution.timeMesh(0).rows(); i++)
                 for (int j = 0; j < solution.timeMesh(0).cols(); j++)
                     std::cout << time << " " << i * solution.step << " " << j * solution.step << " "

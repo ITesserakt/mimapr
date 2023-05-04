@@ -18,6 +18,7 @@
 
 void process_solution(const config::Constants &constants, const Solution &solution) {
     auto writer = ImageWriter({constants.Width, constants.Height});
+    auto gifWriter = GifImageWriter{heatmap_cs_Spectral_soft};
 
     switch (constants.RenderKind) {
     case config::RenderKind::RenderLast:
@@ -48,6 +49,18 @@ void process_solution(const config::Constants &constants, const Solution &soluti
                               << solution.timeMesh(time)(i, j) << std::endl;
         break;
     case config::RenderKind::RenderGif:
+        for (int time = 0; time < constants.TimeLayers - 1; time++) {
+            auto frameWriter = ImageWriter{{constants.Width, constants.Height}};
+            for (int i = 0; i < solution.timeMesh(0).rows(); i++)
+                for (int j = 0; j < solution.timeMesh(0).cols(); j++) {
+                    auto weight = (float)solution.timeMesh(time)(i, j);
+                    frameWriter.addPoint(i * solution.step, constants.Height - j * solution.step, std::abs(weight));
+                }
+            gifWriter.addFrame(std::move(frameWriter));
+        }
+        std::cerr << "Heatmaps populated, generating image" << std::endl;
+        std::filesystem::remove("image.gif");
+        gifWriter.saveToFile("image.gif");
         break;
     }
 }

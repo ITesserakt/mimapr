@@ -1,6 +1,7 @@
 #include <lodepng.h>
 #include <iostream>
 
+#include "gif.h"
 #include "drawer.h"
 
 ImageWriter::~ImageWriter() { heatmap_free(_heatmap); }
@@ -18,23 +19,38 @@ ImageWriter &ImageWriter::addPoint(int x, int y, float weight) {
     return *this;
 }
 
-ImageHandle ImageWriter::write(heatmap_colorscheme_t *colorscheme) { return {_heatmap, colorscheme}; }
+ImageHandle ImageWriter::write(const heatmap_colorscheme_t *colorscheme) { return {_heatmap, colorscheme}; }
 
-ImageHandle::ImageHandle(heatmap_t *heatmap, heatmap_colorscheme_t *colorscheme)
-    : _heatmap(heatmap), _colorscheme(colorscheme) {}
+ImageHandle::ImageHandle(heatmap_t *heatmap, const heatmap_colorscheme_t *colorscheme) {
+    Data = heatmap_render_to(heatmap, colorscheme, nullptr);
+    Width = heatmap->w;
+    Height = heatmap->h;
+}
 
 std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
-    auto renderedData = heatmap_render_to(handle._heatmap, handle._colorscheme, nullptr);
-
     std::vector<unsigned char> encodedData;
-    if (auto result = lodepng::encode(encodedData, renderedData, handle._heatmap->w, handle._heatmap->h) != 0) {
+    if (auto result = lodepng::encode(encodedData, handle.Data, handle.Width, handle.Height) != 0) {
         std::cerr << "Exception occurred while encoding png: " << lodepng_error_text(result) << std::endl;
         throw std::exception{lodepng_error_text(result)};
     }
 
-    for (const auto& item: encodedData)
+    for (const auto &item : encodedData)
         os << item;
     return os;
 }
 
-Eigen::Vector2i ImageHandle::size() const { return {_heatmap->w, _heatmap->h}; }
+void GifImageWriter::addFrame(ImageWriter &&writer) { _frames.push_back(writer.write(_colors)); }
+
+GifImageWriter::GifImageWriter(const heatmap_colorscheme_t *colors) : _colors(colors) {}
+
+void GifImageWriter::saveToFile(const std::string& filename) const {
+    GifWriter gif;
+    auto width = _frames[0].Width;
+    auto height = _frames[0].Height;
+    auto delay = 10;
+
+    GifBegin(&gif, "image.gif", width, height, delay);
+    for (const auto& frame: _frames)
+        GifWriteFrame(&gif, frame.Data, width, height, delay);
+    GifEnd(&gif);
+}

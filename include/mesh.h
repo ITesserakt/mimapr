@@ -6,6 +6,8 @@ struct Node {
     double t = 0.;
     ObjectBound part = ObjectBound::Empty;
     Eigen::Vector2d lambdaMu = {0, 0};
+
+    operator double() const { return t; }
 };
 
 class Mesh {

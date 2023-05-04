@@ -5,3 +5,6 @@
 [submodule "lib/yaml-cpp"]
 	path = lib/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp
+[submodule "lib/heatmap"]
+	path = lib/heatmap
+	url = https://github.com/lucasb-eyer/libheatmap

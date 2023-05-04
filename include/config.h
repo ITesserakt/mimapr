@@ -21,6 +21,8 @@ struct BorderConditions {
     ObjectBound Heat;
     ObjectBound ThermalInsulation;
     ObjectBound Convection;
+
+    [[nodiscard]] ObjectBound bound() const;
 };
 
 struct TaskParameters {
@@ -29,6 +31,8 @@ struct TaskParameters {
 
     static TaskParameters GenerateForVariant(size_t variant);
 };
+
+enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast };
 
 struct Constants {
     int TimeLayers = 100;
@@ -40,7 +44,12 @@ struct Constants {
     double SquareSide = 100;
     int Variant = 1;
     double GridStep = 5;
-    bool OnlyLastTimeLayer = true;
+    RenderKind RenderKind = RenderKind::OutputLast;
+
+    bool isDefault() const;
+
+    bool operator==(const Constants &rhs) const;
+    bool operator!=(const Constants &rhs) const;
 };
 
 } // namespace config
@@ -66,7 +75,7 @@ template <> struct convert<config::Constants> {
         IfNotDefault(Radius2, "big_radius");
         IfNotDefault(Radius1, "hole_radius");
         IfNotDefault(SquareSide, "square_size");
-        IfNotDefault(OnlyLastTimeLayer, "only_last_layer");
+        IfNotDefault(RenderKind, "render_kind");
         return node;
 
 #undef IfNotDefault
@@ -82,9 +91,46 @@ template <> struct convert<config::Constants> {
         rhs.Radius2 = node["big_radius"].as<double>(rhs.Radius2);
         rhs.Radius1 = node["radius_hole"].as<double>(rhs.Radius1);
         rhs.SquareSide = node["square_size"].as<double>(rhs.SquareSide);
-        rhs.OnlyLastTimeLayer = node["only_last_layer"].as<bool>(rhs.OnlyLastTimeLayer);
+        rhs.RenderKind = node["render_kind"].as<RenderKind>(rhs.RenderKind);
 
         return true;
+    }
+};
+
+template <> struct convert<RenderKind> {
+    static bool decode(const Node &node, RenderKind &kind) {
+        if (!node.IsScalar())
+            return false;
+
+        auto value = node.as<std::string>();
+        std::transform(value.begin(), value.end(), value.begin(), [](const auto &c) { return std::tolower(c); });
+        if (value == "output all")
+            kind = config::RenderKind::OutputAll;
+        else if (value == "output last")
+            kind = config::RenderKind::OutputLast;
+        else if (value == "render all")
+            kind = config::RenderKind::RenderGif;
+        else if (value == "render last")
+            kind = config::RenderKind::RenderLast;
+        else
+            return false;
+
+        return true;
+    }
+
+    static Node encode(const RenderKind& kind) {
+        Node node;
+
+        if (kind == config::RenderKind::OutputLast)
+            node = "output last";
+        else if (kind == config::RenderKind::OutputAll)
+            node = "output all";
+        else if (kind == config::RenderKind::RenderLast)
+            node = "render last";
+        else if (kind == config::RenderKind::RenderGif)
+            node = "render all";
+
+        return node;
     }
 };
 } // namespace YAML

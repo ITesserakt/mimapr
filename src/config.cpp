@@ -37,7 +37,24 @@ static T get_by_id(std::array<T, N> array, size_t variant) {
 }
 
 TaskParameters TaskParameters::GenerateForVariant(size_t variant) {
+    auto heat = get_by_id(gamma3, variant);
+    auto heatWithR2 = BorderConditions{heat.Heat | ObjectBound::R2,
+                                       heat.ThermalInsulation, heat.Convection};
     return TaskParameters{
         HoleOptions{get_by_id(gamma2, variant), get_by_id(gamma1, variant)},
-        get_by_id(gamma3, variant)};
+        heatWithR2};
 }
+
+ObjectBound BorderConditions::bound() const {
+    return Heat | ThermalInsulation | Convection;
+}
+
+bool Constants::operator==(const Constants &rhs) const {
+    return TimeLayers == rhs.TimeLayers && DeltaTime == rhs.DeltaTime && Height == rhs.Height && Width == rhs.Width &&
+           Radius2 == rhs.Radius2 && Radius1 == rhs.Radius1 && SquareSide == rhs.SquareSide && Variant == rhs.Variant &&
+           GridStep == rhs.GridStep && RenderKind == rhs.RenderKind;
+}
+
+bool Constants::operator!=(const Constants &rhs) const { return !(rhs == *this); }
+
+bool Constants::isDefault() const { return *this == Constants{}; }

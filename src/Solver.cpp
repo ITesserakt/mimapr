@@ -1,3 +1,4 @@
+#include <Eigen/Eigenvalues>
 #include <iostream>
 
 #include "Solver.h"
@@ -22,6 +23,11 @@ Solver::Solver(Mesh &&mesh, const config::Constants &consts)
                     node.t = meshNode.t;
             }
     }
+
+    if (consts.RenderKind == config::RenderKind::RenderGif || consts.RenderKind == config::RenderKind::OutputAll)
+        SavedTemperatures.resize(consts.TimeLayers);
+    else
+        SavedTemperatures.resize(1);
 }
 
 double Solver::explicitCentralDifference(const Index &index) {
@@ -68,7 +74,7 @@ double Solver::applyBorderConvection(const Index &index) {
 
     Eigen::Vector2d gradient = {gradX, gradY};
 
-    return gradient.dot(-antiNormal);
+    return gradient.dot(Eigen::Vector2d{-antiNormal.x(), antiNormal.y()});
 }
 
 Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node &node) const {
@@ -86,44 +92,67 @@ Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node
         normal =
             -Eigen::Vector2d{350. - index.x() * step, 250. - index.y() * step};
     if (node.part == ObjectBound::R1)
-        normal = (params.hole.center -
-                  Eigen::Vector2d{index.x() * step, index.y() * step});
+        normal = (params.hole.center - Eigen::Vector2d{index.x() * step, index.y() * step});
     if (node.part == ObjectBound::S) {
-        Eigen::Vector2d vec =
-            (params.hole.center -
-             Eigen::Vector2d{index.x() * step, index.y() * step});
-        normal = vec.x() > vec.y() ? Eigen::Vector2d{0, vec.y()}
-                                   : Eigen::Vector2d{vec.x(), 0};
+        Eigen::Vector2d vec = (params.hole.center - Eigen::Vector2d{index.x() * step, index.y() * step});
+        normal = vec.x() > vec.y() ? Eigen::Vector2d{0, vec.y()} : Eigen::Vector2d{vec.x(), 0};
     }
 
     return normal.normalized();
 }
 
-double Solver::applyBorderInsulation(const Index &index) {
-    return T(0)(index.x(), index.y()).t;
-}
+double Solver::applyBorderInsulation(const Index &index) { return T(0)(index.x(), index.y()).t; }
 
-std::ostream &operator<<(std::ostream &os, const Solution &solution) {
-    auto timeSize = solution.timeMesh.size();
-    auto rowsSize = solution.timeMesh(0).rows();
-    auto colsSize = solution.timeMesh(0).cols();
+void Solver::implicitCentralDifference() {
+    using namespace Eigen;
 
-    os << "t x y T" << std::endl;
+    MatrixXd coefficients = MatrixXd::Zero(T(0).size(), T(0).size());
+    auto dx = step;
+    auto dy = step;
 
-    for (int time = 0; time < timeSize; time++)
-        for (int row = 0; row < rowsSize; row++)
-            for (int col = 0; col < colsSize; col++) {
-                const auto &node = solution.timeMesh(time)(row, col);
-                os << time << " " << row * solution.step << " "
-                   << col * solution.step << " " << node.t << std::endl;
+    coefficients.diagonal().setConstant(1. + 2. * dt / dx + 2. * dt / dy);
+    coefficients.diagonal(1).setConstant(dt / dy);
+    coefficients.diagonal(2).setConstant(dt / dx);
+    coefficients.diagonal(-1).setConstant(dt / dy);
+    coefficients.diagonal(-2).setConstant(dt / dx);
+
+    auto rows = T(0).rows();
+    auto cols = T(0).cols();
+
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++) {
+            const auto &node = T(0)(i, j);
+            if (EnumBitmask::contains(params.border.bound(), node.part)) {
+                coefficients.row(i * cols + j).setZero();
+                coefficients.col(i * cols + j).setZero();
             }
+        }
 
-    return os;
-}
+    VectorXd b = VectorXd::Zero(T(0).size());
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++) {
+            const auto &node = T(0)(i, j);
+            if (EnumBitmask::contains(params.border.bound(), node.part) ||
+                EnumBitmask::contains(ObjectBounds::Outer, node.part))
+                b(i * cols + j) = 0;
+            else {
+                b(i * cols + j) = node.t;
+                if (EnumBitmask::contains(params.border.bound(), T(0)(i - 1, j).part))
+                    b(i * cols + j) += dt / dx;
+                if (EnumBitmask::contains(params.border.bound(), T(0)(i + 1, j).part))
+                    b(i * cols + j) += dt / dx;
+                if (EnumBitmask::contains(params.border.bound(), T(0)(i, j - 1).part))
+                    b(i * cols + j) += dt / dy;
+                if (EnumBitmask::contains(params.border.bound(), T(0)(i, j + 1).part))
+                    b(i * cols + j) += dt / dy;
+            }
+        }
 
-Solution Solution::useOnlyTimeLayer(int layer) {
-    Tensor3<Node> specificLayer;
-    specificLayer.resize(1);
-    specificLayer(0) = timeMesh(layer);
-    return Solution{specificLayer, step};
+    coefficients.ldlt().solveInPlace(b);
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++) {
+            auto &node = T(1)(i, j);
+            if (!EnumBitmask::contains(params.border.bound(), node.part))
+                node.t = b(i * cols + j);
+        }
 }

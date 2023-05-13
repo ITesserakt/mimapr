@@ -34,9 +34,7 @@ std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
         throw std::exception{lodepng_error_text(result)};
     }
 
-    for (const auto &item : encodedData)
-        os << item;
-    return os;
+    os.write(reinterpret_cast<const char *>(encodedData.data()), (std::streamsize)encodedData.size());
 }
 
 void GifImageWriter::addFrame(ImageWriter &&writer) { _frames.push_back(writer.write(_colors)); }
@@ -49,7 +47,7 @@ void GifImageWriter::saveToFile(const std::string& filename) const {
     auto height = _frames[0].Height;
     auto delay = 10;
 
-    GifBegin(&gif, "image.gif", width, height, delay);
+    GifBegin(&gif, filename.c_str(), width, height, delay);
     for (const auto& frame: _frames)
         GifWriteFrame(&gif, frame.Data, width, height, delay);
     GifEnd(&gif);

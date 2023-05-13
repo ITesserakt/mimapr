@@ -6,6 +6,7 @@
 #include <omp.h>
 #endif
 
+#include "ProgressBar.h"
 #include "mesh.h"
 
 template <typename T> using Tensor3 = Eigen::VectorX<Eigen::MatrixX<T>>;
@@ -72,26 +73,15 @@ template <config::SolvingMethod Type> void Solver::solveNextLayer() {
 }
 
 template <config::SolvingMethod Type> Solution Solver::solve() {
-    int barWidth = 50;
-    float progress = 0;
-    std::cout << std::fixed << std::setprecision(2);
-    for (int currentTime = 0; currentTime < SizeT - 1; currentTime++) {
+    ProgressBar bar{static_cast<float>(SizeT - 1)};
+    for (int currentTime = 0; currentTime < SizeT - 1; currentTime++, bar++) {
         if (SavedTemperatures.size() != 1)
             SavedTemperatures(currentTime) = T(0).cast<double>();
 
-        std::cout << "[";
-        int pos = barWidth * progress;
-        for (int i = 0; i < barWidth; i++) {
-            if (i < pos) std::cout << "=";
-            else if (i == pos) std::cout << ">";
-            else std::cout << " ";
-        }
-        std::cout << "] " << progress * 100.f << "%\r";
-        std::cout.flush();
-        progress += 1.0f / (SizeT - 1);
-
+        std::cout << bar;
         solveNextLayer<Type>();
     }
+    std::cout << "\n";
 
     if (SavedTemperatures.size() == 1)
         SavedTemperatures(0) = T(0).cast<double>();

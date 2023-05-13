@@ -9,7 +9,7 @@ add_subdirectory(lib/yaml-cpp)
 add_subdirectory(lib/heatmap)
 add_subdirectory(lib/lodepng)
 
-add_executable(main src/main.cpp src/config.cpp src/mesh.cpp src/Solver.cpp src/drawer.cpp)
+add_executable(main src/main.cpp src/config.cpp src/mesh.cpp src/Solver.cpp src/drawer.cpp src/ProgressBar.cpp)
 
 find_package(OpenMP)
 if (${OpenMP_FOUND})

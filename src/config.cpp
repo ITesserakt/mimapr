@@ -52,7 +52,7 @@ ObjectBound BorderConditions::bound() const {
 bool Constants::operator==(const Constants &rhs) const {
     return TimeLayers == rhs.TimeLayers && DeltaTime == rhs.DeltaTime && Height == rhs.Height && Width == rhs.Width &&
            Radius2 == rhs.Radius2 && Radius1 == rhs.Radius1 && SquareSide == rhs.SquareSide && Variant == rhs.Variant &&
-           GridStep == rhs.GridStep && RenderKind == rhs.RenderKind;
+           GridStep == rhs.GridStep && Kind == rhs.Kind;
 }
 
 bool Constants::operator!=(const Constants &rhs) const { return !(rhs == *this); }

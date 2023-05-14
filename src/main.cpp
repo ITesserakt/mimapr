@@ -20,7 +20,7 @@ void process_solution(const config::Constants &constants, const Solution &soluti
     auto writer = ImageWriter({constants.Width, constants.Height});
     auto gifWriter = GifImageWriter{heatmap_cs_Spectral_soft};
 
-    switch (constants.RenderKind) {
+    switch (constants.Kind) {
     case config::RenderKind::RenderLast:
         for (int i = 0; i < solution.timeMesh(0).rows(); i++)
             for (int j = 0; j < solution.timeMesh(0).cols(); j++) {

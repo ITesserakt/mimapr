@@ -24,7 +24,7 @@ Solver::Solver(Mesh &&mesh, const config::Constants &consts)
             }
     }
 
-    if (consts.RenderKind == config::RenderKind::RenderGif || consts.RenderKind == config::RenderKind::OutputAll)
+    if (consts.Kind == config::RenderKind::RenderGif || consts.Kind == config::RenderKind::OutputAll)
         SavedTemperatures.resize(consts.TimeLayers);
     else
         SavedTemperatures.resize(1);

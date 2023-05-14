@@ -46,7 +46,7 @@ struct Constants {
     int Variant = 1;
     double GridStep = 5;
     bool ExportMeshOnly = false;
-    RenderKind RenderKind = RenderKind::OutputLast;
+    RenderKind Kind = RenderKind::OutputLast;
     SolvingMethod SolveMethod = SolvingMethod::Explicit;
 
     [[nodiscard]] bool isDefault() const;
@@ -76,7 +76,7 @@ template <> struct convert<config::Constants> {
         IfNotDefault(Radius2, "big_radius");
         IfNotDefault(Radius1, "hole_radius");
         IfNotDefault(SquareSide, "square_size");
-        IfNotDefault(RenderKind, "render_kind");
+        IfNotDefault(Kind, "render_kind");
         IfNotDefault(SolveMethod, "solving_method");
         IfNotDefault(ExportMeshOnly, "export_mesh_only");
         return node;
@@ -94,7 +94,7 @@ template <> struct convert<config::Constants> {
         rhs.Radius2 = node["big_radius"].as<double>(rhs.Radius2);
         rhs.Radius1 = node["radius_hole"].as<double>(rhs.Radius1);
         rhs.SquareSide = node["square_size"].as<double>(rhs.SquareSide);
-        rhs.RenderKind = node["render_kind"].as<RenderKind>(rhs.RenderKind);
+        rhs.Kind = node["render_kind"].as<RenderKind>(rhs.Kind);
         rhs.SolveMethod = node["solving_method"].as<SolvingMethod>(rhs.SolveMethod);
         rhs.ExportMeshOnly = node["export_mesh_only"].as<bool>(rhs.ExportMeshOnly);
 

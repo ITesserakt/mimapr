@@ -1,6 +1,6 @@
 #include <iostream>
 #include <lodepng.h>
-#include <utility>
+#include <exception>
 
 #include "gif.h"
 #include "drawer.h"

@@ -76,6 +76,11 @@ int main() {
 
     auto params = config::TaskParameters::GenerateForVariant(constants.Variant - 1);
     auto mesh = Mesh{params, constants};
+    if (constants.ExportMeshOnly) {
+        std::ofstream{"mesh.png", std::ios::out | std::ios::binary} << mesh.exportMesh();
+        return 0;
+    }
+
     auto solver = Solver{std::move(mesh), constants};
     std::cerr << "Mesh created. Solving linear systems..." << std::endl;
 

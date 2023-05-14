@@ -23,4 +23,5 @@ static constexpr ObjectBound Ex =
     ObjectBound::L | ObjectBound::R | ObjectBound::T | ObjectBound::B | ObjectBound::R2;
 static constexpr ObjectBound In = ObjectBound::S | ObjectBound::R1;
 static constexpr ObjectBound Outer = ObjectBound::CircleOuter | ObjectBound::SquareOuter;
+static constexpr ObjectBound Max = Ex | In | Outer | ObjectBound::Inner | ObjectBound::S | ObjectBound::R1;
 } // namespace ObjectBounds

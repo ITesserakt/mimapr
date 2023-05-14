@@ -45,6 +45,7 @@ struct Constants {
     double SquareSide = 100;
     int Variant = 1;
     double GridStep = 5;
+    bool ExportMeshOnly = false;
     RenderKind RenderKind = RenderKind::OutputLast;
     SolvingMethod SolveMethod = SolvingMethod::Explicit;
 
@@ -77,6 +78,7 @@ template <> struct convert<config::Constants> {
         IfNotDefault(SquareSide, "square_size");
         IfNotDefault(RenderKind, "render_kind");
         IfNotDefault(SolveMethod, "solving_method");
+        IfNotDefault(ExportMeshOnly, "export_mesh_only");
         return node;
 
 #undef IfNotDefault
@@ -94,6 +96,7 @@ template <> struct convert<config::Constants> {
         rhs.SquareSide = node["square_size"].as<double>(rhs.SquareSide);
         rhs.RenderKind = node["render_kind"].as<RenderKind>(rhs.RenderKind);
         rhs.SolveMethod = node["solving_method"].as<SolvingMethod>(rhs.SolveMethod);
+        rhs.ExportMeshOnly = node["export_mesh_only"].as<bool>(rhs.ExportMeshOnly);
 
         return true;
     }

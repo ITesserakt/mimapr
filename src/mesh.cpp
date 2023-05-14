@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 #include <iostream>
 
@@ -5,10 +6,8 @@
 #include "config.h"
 #include "mesh.h"
 
-Mesh::Mesh(const config::TaskParameters &params,
-           const config::Constants &consts)
-    : H(consts.Height), W(consts.Width), R1(consts.Radius1), R2(consts.Radius2),
-      S(consts.SquareSide) {
+Mesh::Mesh(const config::TaskParameters &params, const config::Constants &consts)
+    : H(consts.Height), W(consts.Width), R1(consts.Radius1), R2(consts.Radius2), S(consts.SquareSide) {
     this->step = consts.GridStep;
     this->params = params;
 
@@ -35,6 +34,73 @@ static void updateOnBorders(ObjectBound &left, ObjectBound &right) {
         left = S;
 }
 
+using Segment = Eigen::MatrixX2d;
+
+static Eigen::Vector2d distanceToSegment(const Eigen::Vector2d &point, Segment segment) {
+    const Eigen::Vector2d &head = segment.row(0);
+    const Eigen::Vector2d &tail = segment.row(1);
+    auto lengthSqr = (head - tail).squaredNorm();
+    if (lengthSqr == 0.0)
+        return (head - point).norm() * (head - point).normalized().cwiseAbs();
+
+    double t = std::max(0.0, std::min(1.0, (point - head).dot(tail - head) / lengthSqr));
+    auto projection = head + t * (tail - head);
+
+    return (point - projection).norm() * (point - projection).normalized().cwiseAbs();
+}
+
+static Eigen::Vector2d distanceToSquare(const Eigen::Vector2d &point, double size, Eigen::Vector2d center) {
+    return {std::min({distanceToSegment(point, Segment{{center.x() - size / 2., center.y() - size / 2.},
+                                                       {center.x() + size / 2., center.y() - size / 2.}})
+                          .x(),
+                      distanceToSegment(point, Segment{{center.x() + size / 2., center.y() + size / 2.},
+                                                       {center.x() + size / 2., center.y() - size / 2.}})
+                          .x()}),
+            std::min({distanceToSegment(point, Segment{{center.x() - size / 2., center.y() - size / 2.},
+                                                       {center.x() - size / 2., center.y() + size / 2.}})
+                          .y(),
+                      distanceToSegment(point, Segment{{center.x() + size / 2., center.y() + size / 2.},
+                                                       {center.x() - size / 2., center.y() + size / 2.}})
+                          .y()})};
+}
+
+static Eigen::Vector2d distanceToCircle(const Eigen::Vector2d &point, double radius, const Eigen::Vector2d &center) {
+    auto link = point - center;
+    auto direction = (link.norm() - radius) * link.normalized();
+    return direction;
+}
+
+static Eigen::Vector2d distanceToArc(const Eigen::Vector2d &point, double radius, Eigen::Vector2d center, double step) {
+    if (point.x() > center.x() && point.y() > center.y())
+        return distanceToCircle(point, radius, center);
+
+    return {step, step};
+}
+
+Eigen::Vector2d Mesh::fixComplexBorders(int x, int y) {
+    Eigen::Vector2d point = {x * step, y * step};
+
+    Eigen::Vector2d distLeft = distanceToSegment(point, Segment{{0., 0.}, {0., H}}) / step;
+    Eigen::Vector2d distBottom = distanceToSegment(point, Segment{{0., 0.}, {W, 0.}}) / step;
+    Eigen::Vector2d distRight = distanceToSegment(point, Segment{{W, 0.}, {W, H - R2}}) / step;
+    Eigen::Vector2d distTop = distanceToSegment(point, Segment{{0., H}, {W - R2, H}}) / step;
+    Eigen::Vector2d distHole = (params.hole.isSquare() ? distanceToSquare(point, S, params.hole.center)
+                                                       : distanceToCircle(point, R1, params.hole.center)) /
+                               step;
+    Eigen::Vector2d distRadius = distanceToArc(point, R2, {X_R2_CENTER, Y_R2_CENTER}, step) / step;
+
+    Eigen::Vector2d minimumDist = {1, 1};
+    for (const auto &vec : {distRadius, distHole, distLeft, distRight, distTop, distBottom}) {
+        if (vec.norm() < 1.) {
+            if (vec.x() < minimumDist.x())
+                minimumDist.x() = vec.x();
+            if (vec.y() < minimumDist.y())
+                minimumDist.y() = vec.y();
+        }
+    }
+    return minimumDist;
+}
+
 void Mesh::nodeTypesInit() {
     nodes.resize(x_count, y_count);
 
@@ -45,35 +111,39 @@ void Mesh::nodeTypesInit() {
 
     for (int i = 0; i < x_count; i++) {
         for (int j = 1; j < y_count; j++) {
-            auto &left = nodes(i, j - 1).part;
-            auto &right = nodes(i, j).part;
+            auto &left = nodes(i, j - 1);
+            auto &right = nodes(i, j);
 
-            if (left == ObjectBound::Inner && right == ObjectBounds::Outer) {
+            if (left.part == ObjectBound::Inner && right.part == ObjectBounds::Outer) {
                 if (i >= X_R2_CENTER / step)
-                    right = ObjectBound::R2;
+                    right.part = ObjectBound::R2;
                 else
-                    right = ObjectBound::T;
+                    right.part = ObjectBound::T;
             }
 
-            updateOnBorders(left, right);
+            updateOnBorders(left.part, right.part);
         }
     }
 
     for (int i = 1; i < x_count; i++) {
         for (int j = 0; j < y_count; j++) {
-            auto &left = nodes(i - 1, j).part;
-            auto &right = nodes(i, j).part;
+            auto &left = nodes(i - 1, j);
+            auto &right = nodes(i, j);
 
-            if (left == ObjectBound::Inner && right == ObjectBounds::Outer) {
+            if (left.part == ObjectBound::Inner && right.part == ObjectBounds::Outer) {
                 if (j >= Y_R2_CENTER / step)
-                    right = ObjectBound::R2;
+                    right.part = ObjectBound::R2;
                 else
-                    right = ObjectBound::R;
+                    right.part = ObjectBound::R;
             }
 
-            updateOnBorders(left, right);
+            updateOnBorders(left.part, right.part);
         }
     }
+
+    for (int i = 0; i < x_count; i++)
+        for (int j = 0; j < y_count; j++)
+            nodes(i, j).lambdaMu = fixComplexBorders(i, j);
 }
 
 ObjectBound Mesh::shape(double x, double y) {
@@ -130,6 +200,20 @@ void Mesh::initHeatBorderConditions() {
         }
 }
 
+ImageHandle Mesh::exportMesh() const {
+    ImageWriter w{{x_count, y_count}};
+    heatmap_stamp_t *cell = heatmap_stamp_gen(0);
+
+    for (int x = 0; x < x_count; x++)
+        for (int y = 0; y < y_count; y++) {
+            const auto &node = nodes(x, y);
+            w.addPoint(x, y, Eigen::Vector3d{node.lambdaMu.x(), node.lambdaMu.y(), 0}.norm(), cell);
+        }
+
+    heatmap_stamp_free(cell);
+    return w.write();
+}
+
 static void print_short(ObjectBound type) {
     switch (type) {
     case ObjectBound::Inner:
@@ -164,14 +248,5 @@ static void print_short(ObjectBound type) {
     case ObjectBound::Empty:
         std::cout << "N";
         break;
-    }
-}
-
-void Mesh::print_node_types() {
-    for (int i = 0; i < x_count; i++) {
-        for (int j = 0; j < y_count; j++)
-            print_short(nodes(i, j).part);
-
-        std::cout << std::endl;
     }
 }

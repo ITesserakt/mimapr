@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config.h"
+#include "drawer.h"
 
 struct Node {
     double t = 0.;
@@ -28,8 +29,8 @@ class Mesh {
     double R1;
     double S;
 
-    double X_R2_CENTER = W - R2;
-    double Y_R2_CENTER = H - R2;
+    const double X_R2_CENTER = W - R2;
+    const double Y_R2_CENTER = H - R2;
 
     void nodeTypesInit();
 
@@ -37,8 +38,10 @@ class Mesh {
 
     void initHeatBorderConditions();
 
+    Eigen::Vector2d fixComplexBorders(int x, int y);
+
   public:
     Mesh(const config::TaskParameters &params, const config::Constants& consts);
 
-    void print_node_types();
+    ImageHandle exportMesh() const;
 };

@@ -5,10 +5,11 @@
 #include <ostream>
 
 struct ImageHandle {
-    unsigned char *Data;
+    const unsigned char *Data;
     unsigned int Width, Height;
 
     ImageHandle(heatmap_t *heatmap, const heatmap_colorscheme_t *colorscheme);
+    ImageHandle(const unsigned char *data, unsigned int width, unsigned int height);
     ImageHandle(const ImageHandle &) = delete;
     ImageHandle &operator=(const ImageHandle &) = delete;
     ImageHandle(ImageHandle &&) = default;
@@ -29,8 +30,9 @@ class ImageWriter {
     ImageWriter &operator=(ImageWriter &&) = default;
 
     ImageWriter &addPoint(int x, int y, float weight = 1);
+    ImageWriter &addPoint(int x, int y, float weight, heatmap_stamp_t* stamp);
 
-    ImageHandle write(const heatmap_colorscheme_t *colorscheme = heatmap_cs_default);
+    ImageHandle write(const heatmap_colorscheme_t *colorscheme = heatmap_cs_default) const;
 
     ~ImageWriter();
 };

@@ -1,5 +1,6 @@
-#include <lodepng.h>
 #include <iostream>
+#include <lodepng.h>
+#include <utility>
 
 #include "gif.h"
 #include "drawer.h"
@@ -19,7 +20,12 @@ ImageWriter &ImageWriter::addPoint(int x, int y, float weight) {
     return *this;
 }
 
-ImageHandle ImageWriter::write(const heatmap_colorscheme_t *colorscheme) { return {_heatmap, colorscheme}; }
+ImageHandle ImageWriter::write(const heatmap_colorscheme_t *colorscheme) const { return {_heatmap, colorscheme}; }
+
+ImageWriter &ImageWriter::addPoint(int x, int y, float weight, heatmap_stamp_t *stamp) {
+    heatmap_add_weighted_point_with_stamp(_heatmap, x, y, weight, stamp);
+    return *this;
+}
 
 ImageHandle::ImageHandle(heatmap_t *heatmap, const heatmap_colorscheme_t *colorscheme) {
     Data = heatmap_render_to(heatmap, colorscheme, nullptr);
@@ -37,18 +43,21 @@ std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
     os.write(reinterpret_cast<const char *>(encodedData.data()), (std::streamsize)encodedData.size());
 }
 
+ImageHandle::ImageHandle(const unsigned char *data, unsigned int width, unsigned int height)
+    : Data(data), Width(width), Height(height) {}
+
 void GifImageWriter::addFrame(ImageWriter &&writer) { _frames.push_back(writer.write(_colors)); }
 
 GifImageWriter::GifImageWriter(const heatmap_colorscheme_t *colors) : _colors(colors) {}
 
-void GifImageWriter::saveToFile(const std::string& filename) const {
+void GifImageWriter::saveToFile(const std::string &filename) const {
     GifWriter gif;
     auto width = _frames[0].Width;
     auto height = _frames[0].Height;
     auto delay = 10;
 
     GifBegin(&gif, filename.c_str(), width, height, delay);
-    for (const auto& frame: _frames)
+    for (const auto &frame : _frames)
         GifWriteFrame(&gif, frame.Data, width, height, delay);
     GifEnd(&gif);
 }

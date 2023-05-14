@@ -37,10 +37,11 @@ std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
     std::vector<unsigned char> encodedData;
     if (auto result = lodepng::encode(encodedData, handle.Data, handle.Width, handle.Height) != 0) {
         std::cerr << "Exception occurred while encoding png: " << lodepng_error_text(result) << std::endl;
-        throw std::exception{lodepng_error_text(result)};
+        return os;
     }
 
     os.write(reinterpret_cast<const char *>(encodedData.data()), (std::streamsize)encodedData.size());
+    return os;
 }
 
 ImageHandle::ImageHandle(const unsigned char *data, unsigned int width, unsigned int height)

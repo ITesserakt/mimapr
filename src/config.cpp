@@ -5,7 +5,7 @@
 using namespace config;
 using namespace Eigen;
 
-static std::array<HoleType, 2> gamma1 = {HoleType::Circle, HoleType::Square};
+static std::array<HoleType, 2> gamma1 = {HoleType::Square, HoleType::Circle};
 static std::array<Vector2d, 5> gamma2 = {
     Vector2d{155, 155}, Vector2d{155, 255}, Vector2d{355, 255},
     Vector2d{355, 155}, Vector2d{255, 205},

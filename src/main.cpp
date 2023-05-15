@@ -86,9 +86,9 @@ int main() {
 
     Solution solution;
     if (constants.SolveMethod == config::SolvingMethod::Explicit)
-        solution = solver.solve<config::SolvingMethod::Explicit>();
+        solution = solver.solveExplicit();
     else
-        solution = solver.solve<config::SolvingMethod::Implicit>();
+        solution = solver.solveImplicit();
     std::cerr << "Successfully calculated solution" << std::endl;
 
     process_solution(constants, solution);

@@ -89,7 +89,7 @@ Eigen::Vector2d Mesh::fixComplexBorders(int x, int y) {
                                step;
     Eigen::Vector2d distRadius = distanceToArc(point, R2, {X_R2_CENTER, Y_R2_CENTER}, step) / step;
 
-    Eigen::Vector2d minimumDist = {1, 1};
+    Eigen::Vector2d minimumDist = {1 / sqrt(2), 1 / sqrt(2)};
     for (const auto &vec : {distRadius, distHole, distLeft, distRight, distTop, distBottom}) {
         if (vec.norm() < 1.) {
             if (vec.x() < minimumDist.x())

@@ -47,15 +47,19 @@ double Solver::explicitCentralDifference(const Index &index) {
     double dx = step;
     double dy = step;
 
-    return dt * ((C.t - 2 * A.t + B.t) / dx / dx +
-                 (E.t - 2 * A.t + D.t) / dy / dy) +
-           A.t;
+    return dt * ((C - 2 * A + B) / dx / dx + (E - 2 * A + D) / dy / dy) + A;
 }
 
 double Solver::applyBorderConvection(const Index &index) {
     const auto &node = T(0)(index.x(), index.y());
     Eigen::Vector2d antiNormal = -getNormalToBorder(index, node);
     Eigen::Vector4i indexes = {index.x(), index.y(), index.x(), index.y()};
+
+    /**
+     * (C = F) ---- G    |    G ---- (C = F) | (A = E) - (C = B) | (A = C) - (B = E)
+     *    |         |    |    |         |    |    |         |    |    |         |
+     * (A = D) - (B = E) | (A = E) - (B = D) |    G ---- (D = F) | (D = F) ---- G
+     */
 
     if (antiNormal.y() < 0.)
         indexes.w() = index.y() - 1;
@@ -67,14 +71,27 @@ double Solver::applyBorderConvection(const Index &index) {
         indexes.z() = index.x() + 1;
 
     double dx = step, dy = step;
-    auto gradX =
-        (T(0)(indexes.x(), index.y()).t - T(0)(indexes.z(), index.y()).t) / dx;
-    auto gradY =
-        (T(0)(index.x(), indexes.y()).t - T(0)(index.x(), indexes.w()).t) / dy;
+    const auto &A = T(0)(indexes.x(), index.y());
+    const auto &B = T(0)(indexes.z(), index.y());
+    const auto &C = T(0)(index.x(), indexes.y());
+    const auto &D = T(0)(index.x(), indexes.w());
 
-    Eigen::Vector2d gradient = {gradX, gradY};
+    const auto &E = indexes.x() != index.x() ? A : B; // outstanding by x node
+    const auto &F = indexes.y() != index.y() ? C : D; // outstanding by y node
+    const auto &G = T(0)(indexes.x() != index.x() ? indexes.x() : indexes.z(),
+                         indexes.y() != index.y() ? indexes.y() : indexes.w());
 
-    return gradient.dot(Eigen::Vector2d{-antiNormal.x(), antiNormal.y()});
+    auto gradX = (A - B) / dx;
+    auto gradY = (C - D) / dy;
+    auto dxdy = G - E - F + node;
+
+    auto normal = -antiNormal;
+    double result;
+    if (normal.x() != 0)
+        result += 1. / normal.x() * (gradX - dxdy * normal.y());
+    if (normal.y() != 0)
+        result += 1. / normal.y() * (gradY - dxdy * normal.x());
+    return result;
 }
 
 Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node &node) const {
@@ -101,9 +118,38 @@ Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node
     return normal.normalized();
 }
 
-double Solver::applyBorderInsulation(const Index &index) { return T(0)(index.x(), index.y()).t; }
+double Solver::applyBorderInsulation(const Index &index) {
+    const auto &node = T(0)(index.x(), index.y());
+    Eigen::Vector2d normal = getNormalToBorder(index, node);
+    Eigen::Vector2d antiNormal = -normal;
+    auto offsetX = antiNormal.x() >= 0. ? -1 : 1;
+    auto offsetY = antiNormal.y() >= 0. ? -1 : 1;
+    auto i = index.x();
+    auto j = index.y();
+
+    double dx = step;
+    double dy = step;
+
+    double dxdy = T(0)(i + offsetX, j + offsetY) - T(0)(i + offsetX, j) - T(0)(i, j + offsetY) + T(0)(i, j);
+
+    return dt * (-2 * dxdy / dx / dy) + T(0)(i, j);
+}
 
 void Solver::implicitCentralDifference() {
+    auto rows = T(0).rows();
+    auto cols = T(0).cols();
+
+    Eigen::VectorXd tNew = meshCoeffs.ldlt().solve(meshFreeCoeffs);
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++) {
+            auto &node = T(1)(i, j);
+            if (!EnumBitmask::contains(params.border.bound(), node.part) &&
+                !EnumBitmask::contains(ObjectBounds::Outer, node.part))
+                node.t = tNew(i * cols + j);
+        }
+}
+
+Eigen::MatrixXd Solver::buildCoefficientMatrix() const {
     using namespace Eigen;
 
     MatrixXd coefficients = MatrixXd::Zero(T(0).size(), T(0).size());
@@ -128,6 +174,54 @@ void Solver::implicitCentralDifference() {
             }
         }
 
+    return coefficients;
+}
+
+Solution Solver::solveExplicit() {
+    ProgressBar bar{static_cast<float>(SizeT - 1)};
+    for (int currentTime = 0; currentTime < SizeT - 1; currentTime++, bar++) {
+        if (SavedTemperatures.size() != 1)
+            SavedTemperatures(currentTime) = T(0).cast<double>();
+
+        std::cout << bar;
+        solveNextLayer<config::SolvingMethod::Explicit>();
+    }
+    std::cout << "\n";
+
+    if (SavedTemperatures.size() == 1)
+        SavedTemperatures(0) = T(0).cast<double>();
+
+    return {std::move(SavedTemperatures), step};
+}
+
+Solution Solver::solveImplicit() {
+    meshCoeffs = buildCoefficientMatrix();
+    meshFreeCoeffs = buildFreeDicksVector();
+
+    ProgressBar bar{static_cast<float>(SizeT - 1)};
+    for (int currentTime = 0; currentTime < SizeT - 1; currentTime++, bar++) {
+        if (SavedTemperatures.size() != 1)
+            SavedTemperatures(currentTime) = T(0).cast<double>();
+
+        std::cout << bar;
+        solveNextLayer<config::SolvingMethod::Implicit>();
+    }
+    std::cout << "\n";
+
+    if (SavedTemperatures.size() == 1)
+        SavedTemperatures(0) = T(0).cast<double>();
+
+    return {std::move(SavedTemperatures), step};
+}
+
+Eigen::VectorXd Solver::buildFreeDicksVector() const {
+    using namespace Eigen;
+
+    auto rows = T(0).rows();
+    auto cols = T(0).cols();
+    auto dx = step;
+    auto dy = step;
+
     VectorXd b = VectorXd::Zero(T(0).size());
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
@@ -138,21 +232,15 @@ void Solver::implicitCentralDifference() {
             else {
                 b(i * cols + j) = node.t;
                 if (EnumBitmask::contains(params.border.bound(), T(0)(i - 1, j).part))
-                    b(i * cols + j) += dt / dx;
+                    b(i * cols + j) -= dt / dx;
                 if (EnumBitmask::contains(params.border.bound(), T(0)(i + 1, j).part))
-                    b(i * cols + j) += dt / dx;
+                    b(i * cols + j) -= dt / dx;
                 if (EnumBitmask::contains(params.border.bound(), T(0)(i, j - 1).part))
-                    b(i * cols + j) += dt / dy;
+                    b(i * cols + j) -= dt / dy;
                 if (EnumBitmask::contains(params.border.bound(), T(0)(i, j + 1).part))
-                    b(i * cols + j) += dt / dy;
+                    b(i * cols + j) -= dt / dy;
             }
         }
 
-    coefficients.ldlt().solveInPlace(b);
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++) {
-            auto &node = T(1)(i, j);
-            if (!EnumBitmask::contains(params.border.bound(), node.part))
-                node.t = b(i * cols + j);
-        }
+    return b;
 }

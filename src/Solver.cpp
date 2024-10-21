@@ -1,11 +1,11 @@
+#include "ProgressBar.h"
 #include <Eigen/Eigenvalues>
 #include <iostream>
 
 #include "Solver.h"
 
 Solver::Solver(Mesh &&mesh, const config::Constants &consts)
-    : step(mesh.step), params(mesh.params), SizeT(consts.TimeLayers),
-      dt(consts.DeltaTime) {
+    : step(mesh.step), params(mesh.params), SizeT(consts.TimeLayers), dt(consts.DeltaTime) {
     const auto &meshMatrix = mesh.nodes;
     const auto rows = meshMatrix.rows();
     const auto cols = meshMatrix.cols();
@@ -30,7 +30,7 @@ Solver::Solver(Mesh &&mesh, const config::Constants &consts)
         SavedTemperatures.resize(1);
 }
 
-double Solver::explicitCentralDifference(const Index &index) {
+double Solver::explicitCentralDifference(const Index &index) const {
     /**
      *     E
      *     |
@@ -44,13 +44,13 @@ double Solver::explicitCentralDifference(const Index &index) {
     const auto &D = T(0)(index.x(), index.y() - 1);
     const auto &E = T(0)(index.x(), index.y() + 1);
 
-    double dx = step;
-    double dy = step;
+    const double dx = step;
+    const double dy = step;
 
     return dt * ((C - 2 * A + B) / dx / dx + (E - 2 * A + D) / dy / dy) + A;
 }
 
-double Solver::applyBorderConvection(const Index &index) {
+double Solver::applyBorderConvection(const Index &index) const {
     const auto &node = T(0)(index.x(), index.y());
     Eigen::Vector2d antiNormal = -getNormalToBorder(index, node);
     Eigen::Vector4i indexes = {index.x(), index.y(), index.x(), index.y()};
@@ -81,11 +81,11 @@ double Solver::applyBorderConvection(const Index &index) {
     const auto &G = T(0)(indexes.x() != index.x() ? indexes.x() : indexes.z(),
                          indexes.y() != index.y() ? indexes.y() : indexes.w());
 
-    auto gradX = (A - B) / dx;
-    auto gradY = (C - D) / dy;
-    auto dxdy = G - E - F + node;
+    const auto gradX = (A - B) / dx;
+    const auto gradY = (C - D) / dy;
+    const auto dxdy = G - E - F + node;
 
-    auto normal = -antiNormal;
+    const auto normal = -antiNormal;
     double result = 0.0;
     if (normal.x() != 0)
         result += 1. / normal.x() * (gradX - dxdy * normal.y());
@@ -106,8 +106,7 @@ Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node
     if (node.part == ObjectBound::B)
         normal = {0, -1};
     if (node.part == ObjectBound::R2)
-        normal =
-            -Eigen::Vector2d{350. - index.x() * step, 250. - index.y() * step};
+        normal = -Eigen::Vector2d{350. - index.x() * step, 250. - index.y() * step};
     if (node.part == ObjectBound::R1)
         normal = (params.hole.center - Eigen::Vector2d{index.x() * step, index.y() * step});
     if (node.part == ObjectBound::S) {
@@ -118,28 +117,28 @@ Eigen::Vector2d Solver::getNormalToBorder(const Solver::Index &index, const Node
     return normal.normalized();
 }
 
-double Solver::applyBorderInsulation(const Index &index) {
+double Solver::applyBorderInsulation(const Index &index) const {
     const auto &node = T(0)(index.x(), index.y());
-    Eigen::Vector2d normal = getNormalToBorder(index, node);
+    const Eigen::Vector2d normal = getNormalToBorder(index, node);
     Eigen::Vector2d antiNormal = -normal;
-    auto offsetX = antiNormal.x() >= 0. ? -1 : 1;
-    auto offsetY = antiNormal.y() >= 0. ? -1 : 1;
-    auto i = index.x();
-    auto j = index.y();
+    const auto offsetX = antiNormal.x() >= 0. ? -1 : 1;
+    const auto offsetY = antiNormal.y() >= 0. ? -1 : 1;
+    const auto i = index.x();
+    const auto j = index.y();
 
-    double dx = step;
-    double dy = step;
+    const double dx = step;
+    const double dy = step;
 
-    double dxdy = T(0)(i + offsetX, j + offsetY) - T(0)(i + offsetX, j) - T(0)(i, j + offsetY) + T(0)(i, j);
+    const double dxdy = T(0)(i + offsetX, j + offsetY) - T(0)(i + offsetX, j) - T(0)(i, j + offsetY) + T(0)(i, j);
 
     return dt * (-2 * dxdy / dx / dy) + T(0)(i, j);
 }
 
 void Solver::implicitCentralDifference() {
-    auto rows = T(0).rows();
-    auto cols = T(0).cols();
+    const auto rows = T(0).rows();
+    const auto cols = T(0).cols();
 
-    Eigen::VectorXd tNew = meshCoeffs.ldlt().solve(meshFreeCoeffs);
+    Eigen::VectorXd tNew = meshCoeffs.partialPivLu().solve(meshFreeCoeffs);
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
             auto &node = T(1)(i, j);
@@ -153,8 +152,8 @@ Eigen::MatrixXd Solver::buildCoefficientMatrix() const {
     using namespace Eigen;
 
     MatrixXd coefficients = MatrixXd::Zero(T(0).size(), T(0).size());
-    auto dx = step;
-    auto dy = step;
+    const auto dx = step;
+    const auto dy = step;
 
     coefficients.diagonal().setConstant(1. + 2. * dt / dx + 2. * dt / dy);
     coefficients.diagonal(1).setConstant(dt / dy);
@@ -162,8 +161,8 @@ Eigen::MatrixXd Solver::buildCoefficientMatrix() const {
     coefficients.diagonal(-1).setConstant(dt / dy);
     coefficients.diagonal(-2).setConstant(dt / dx);
 
-    auto rows = T(0).rows();
-    auto cols = T(0).cols();
+    const auto rows = T(0).rows();
+    const auto cols = T(0).cols();
 
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
@@ -217,10 +216,10 @@ Solution Solver::solveImplicit() {
 Eigen::VectorXd Solver::buildFreeDicksVector() const {
     using namespace Eigen;
 
-    auto rows = T(0).rows();
-    auto cols = T(0).cols();
-    auto dx = step;
-    auto dy = step;
+    const auto rows = T(0).rows();
+    const auto cols = T(0).cols();
+    const auto dx = step;
+    const auto dy = step;
 
     VectorXd b = VectorXd::Zero(T(0).size());
     for (int i = 0; i < rows; i++)

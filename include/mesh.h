@@ -41,7 +41,7 @@ class Mesh {
     Eigen::Vector2d fixComplexBorders(int x, int y);
 
   public:
-    Mesh(const config::TaskParameters &params, const config::Constants& consts);
+    Mesh(config::TaskParameters params, const config::Constants& consts);
 
-    ImageHandle exportMesh() const;
+    [[nodiscard]] ImageHandle exportMesh() const;
 };

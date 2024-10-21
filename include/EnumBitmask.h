@@ -12,59 +12,55 @@ namespace EnumBitmask {
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-[[nodiscard]] inline constexpr auto contains(const ENUM &lhs,
-                                             const ENUM &rhs) noexcept {
+[[nodiscard]] constexpr auto contains(const ENUM &lhs, const ENUM &rhs) noexcept {
     using U = std::underlying_type_t<ENUM>;
     return (static_cast<U>(lhs) & static_cast<U>(rhs)) == static_cast<U>(rhs);
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-[[nodiscard]] inline constexpr auto operator&(const ENUM &lhs,
-                                              const ENUM &rhs) noexcept {
+[[nodiscard]] constexpr auto operator&(const ENUM &lhs, const ENUM &rhs) noexcept {
     using U = std::underlying_type_t<ENUM>;
     return ENUM(static_cast<U>(lhs) & static_cast<U>(rhs));
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-[[nodiscard]] inline constexpr auto operator|(const ENUM &lhs,
-                                              const ENUM &rhs) noexcept {
+[[nodiscard]] constexpr auto operator|(const ENUM &lhs, const ENUM &rhs) noexcept {
     using U = std::underlying_type_t<ENUM>;
     return ENUM(static_cast<U>(lhs) | static_cast<U>(rhs));
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-[[nodiscard]] inline constexpr auto operator^(const ENUM &lhs,
-                                              const ENUM& rhs) noexcept {
+[[nodiscard]] constexpr auto operator^(const ENUM &lhs, const ENUM &rhs) noexcept {
     using U = std::underlying_type_t<ENUM>;
     return ENUM(static_cast<U>(lhs) ^ static_cast<U>(rhs));
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-[[nodiscard]] inline constexpr ENUM operator~(const ENUM &value) noexcept {
+[[nodiscard]] constexpr ENUM operator~(const ENUM &value) noexcept {
     using U = std::underlying_type_t<ENUM>;
     return ENUM(~static_cast<U>(value));
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-inline constexpr ENUM &operator&=(ENUM &lhs, const ENUM &rhs) noexcept {
-    return lhs = (lhs & rhs);
+constexpr ENUM &operator&=(ENUM &lhs, const ENUM &rhs) noexcept {
+    return lhs = lhs & rhs;
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-inline constexpr ENUM &operator|=(ENUM &lhs, const ENUM &rhs) noexcept {
-    return lhs = (lhs | rhs);
+constexpr ENUM &operator|=(ENUM &lhs, const ENUM &rhs) noexcept {
+    return lhs = lhs | rhs;
 }
 
 template <typename ENUM>
     requires std::is_enum_v<ENUM>
-inline constexpr ENUM &operator^=(ENUM &lhs, const ENUM &rhs) noexcept {
-    return lhs = (lhs ^ rhs);
+constexpr ENUM &operator^=(ENUM &lhs, const ENUM &rhs) noexcept {
+    return lhs = lhs ^ rhs;
 }
 
 } // namespace EnumBitmask

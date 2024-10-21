@@ -1,5 +1,4 @@
-#define _SILENCE_CXX17_NEGATORS_DEPRECATION_WARNING // NOLINT(bugprone-reserved-identifier)
-
+// ReSharper disable once CppUnusedIncludeDirective
 #include <heatmap.h>
 #include <colorschemes/Spectral.h>
 #include <filesystem>
@@ -9,7 +8,6 @@
 
 #if USE_OPEN_MP
 #include <omp.h>
-#include <thread>
 #endif
 
 #include "Solver.h"
@@ -73,6 +71,10 @@ int main() {
     auto constants = yaml["constants"].as<config::Constants>();
     if (!constants.isDefault())
         std::cerr << "Using non-default constant values:\n" << yaml["constants"] << std::endl;
+
+#ifdef USE_OPEN_MP
+    omp_set_num_threads(constants.Parallelism);
+#endif
 
     auto params = config::TaskParameters::GenerateForVariant(constants.Variant - 1);
     auto mesh = Mesh{params, constants};

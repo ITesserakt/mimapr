@@ -2,14 +2,14 @@
 
 #include "ProgressBar.h"
 
-ProgressBar::ProgressBar(float size, int barWidth) : _barWidth(barWidth), _progress(0.0f), _size(size) {}
+ProgressBar::ProgressBar(const float size, const int barWidth) : _barWidth(barWidth), _progress(0.0f), _size(size) {}
 
 std::ostream &operator<<(std::ostream &os, const ProgressBar &bar) {
     os << std::fixed << std::setprecision(2);
 
     os << "[";
 
-    int pos = int((float)bar._barWidth * bar._progress);
+    const int pos = int((float)bar._barWidth * bar._progress);
     for (int i = 0; i < bar._barWidth; i++) {
         if (i < pos)
             os << "=";

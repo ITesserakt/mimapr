@@ -32,13 +32,13 @@ static std::array<BorderConditions, 13> gamma3 = {
 };
 
 template <typename T, size_t N>
-static T get_by_id(std::array<T, N> array, size_t variant) {
+static T get_by_id(std::array<T, N> array, const size_t variant) {
     return array[variant % N];
 }
 
-TaskParameters TaskParameters::GenerateForVariant(size_t variant) {
-    auto heat = get_by_id(gamma3, variant);
-    auto heatWithR2 = BorderConditions{heat.Heat | ObjectBound::R2,
+TaskParameters TaskParameters::GenerateForVariant(const size_t variant) {
+    const auto heat = get_by_id(gamma3, variant);
+    const auto heatWithR2 = BorderConditions{heat.Heat | ObjectBound::R2,
                                        heat.ThermalInsulation, heat.Convection};
     return TaskParameters{
         HoleOptions{get_by_id(gamma2, variant), get_by_id(gamma1, variant)},

@@ -15,14 +15,14 @@ ImageWriter::ImageWriter(Eigen::Vector2i size, const Eigen::MatrixXf &points) {
             heatmap_add_weighted_point(_heatmap, i, j, points(i, j));
 }
 
-ImageWriter &ImageWriter::addPoint(int x, int y, float weight) {
+ImageWriter &ImageWriter::addPoint(const int x, const int y, const float weight) {
     heatmap_add_weighted_point(_heatmap, x, y, weight);
     return *this;
 }
 
 ImageHandle ImageWriter::write(const heatmap_colorscheme_t *colorscheme) const { return {_heatmap, colorscheme}; }
 
-ImageWriter &ImageWriter::addPoint(int x, int y, float weight, heatmap_stamp_t *stamp) {
+ImageWriter &ImageWriter::addPoint(const int x, const int y, const float weight, heatmap_stamp_t *stamp) {
     heatmap_add_weighted_point_with_stamp(_heatmap, x, y, weight, stamp);
     return *this;
 }
@@ -35,7 +35,7 @@ ImageHandle::ImageHandle(heatmap_t *heatmap, const heatmap_colorscheme_t *colors
 
 std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
     std::vector<unsigned char> encodedData;
-    if (auto result = lodepng::encode(encodedData, handle.Data, handle.Width, handle.Height) != 0) {
+    if (const auto result = lodepng::encode(encodedData, handle.Data, handle.Width, handle.Height) != 0) {
         std::cerr << "Exception occurred while encoding png: " << lodepng_error_text(result) << std::endl;
         return os;
     }
@@ -44,7 +44,7 @@ std::ostream &operator<<(std::ostream &os, const ImageHandle &handle) {
     return os;
 }
 
-ImageHandle::ImageHandle(const unsigned char *data, unsigned int width, unsigned int height)
+ImageHandle::ImageHandle(const unsigned char *data, const unsigned int width, const unsigned int height)
     : Data(data), Width(width), Height(height) {}
 
 void GifImageWriter::addFrame(ImageWriter &&writer) { _frames.push_back(writer.write(_colors)); }
@@ -53,9 +53,9 @@ GifImageWriter::GifImageWriter(const heatmap_colorscheme_t *colors) : _colors(co
 
 void GifImageWriter::saveToFile(const std::string &filename) const {
     GifWriter gif;
-    auto width = _frames[0].Width;
-    auto height = _frames[0].Height;
-    auto delay = 10;
+    const auto width = _frames[0].Width;
+    const auto height = _frames[0].Height;
+    const auto delay = 10;
 
     GifBegin(&gif, filename.c_str(), width, height, delay);
     for (const auto &frame : _frames)

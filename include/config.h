@@ -5,6 +5,9 @@
 
 #include "object.h"
 
+#include <thread>
+#include <utility>
+
 namespace config {
 
 enum class HoleType { Square, Circle };
@@ -26,6 +29,10 @@ struct BorderConditions {
 };
 
 struct TaskParameters {
+private:
+    TaskParameters(HoleOptions hole, const BorderConditions &border) : hole(std::move(hole)), border(border) {}
+
+public:
     HoleOptions hole;
     BorderConditions border;
 
@@ -46,6 +53,7 @@ struct Constants {
     int Variant = 1;
     double GridStep = 5;
     bool ExportMeshOnly = false;
+    unsigned int Parallelism = std::thread::hardware_concurrency();
     RenderKind Kind = RenderKind::OutputLast;
     SolvingMethod SolveMethod = SolvingMethod::Explicit;
 
@@ -60,7 +68,7 @@ struct Constants {
 namespace YAML {
 using namespace config;
 
-template <> struct convert<config::Constants> {
+template <> struct convert<Constants> {
     static Node encode(const Constants &rhs) {
         Node node;
 
@@ -79,6 +87,7 @@ template <> struct convert<config::Constants> {
         IfNotDefault(Kind, "render_kind");
         IfNotDefault(SolveMethod, "solving_method");
         IfNotDefault(ExportMeshOnly, "export_mesh_only");
+        IfNotDefault(Parallelism, "parallelism");
         return node;
 
 #undef IfNotDefault
@@ -97,6 +106,7 @@ template <> struct convert<config::Constants> {
         rhs.Kind = node["render_kind"].as<RenderKind>(rhs.Kind);
         rhs.SolveMethod = node["solving_method"].as<SolvingMethod>(rhs.SolveMethod);
         rhs.ExportMeshOnly = node["export_mesh_only"].as<bool>(rhs.ExportMeshOnly);
+        rhs.Parallelism = node["parallelism"].as<unsigned int>(rhs.Parallelism);
 
         return true;
     }
@@ -109,13 +119,13 @@ template <> struct convert<RenderKind> {
 
         auto value = node.as<std::string>();
         if (value == "output all")
-            kind = config::RenderKind::OutputAll;
+            kind = RenderKind::OutputAll;
         else if (value == "output last")
-            kind = config::RenderKind::OutputLast;
+            kind = RenderKind::OutputLast;
         else if (value == "render all")
-            kind = config::RenderKind::RenderGif;
+            kind = RenderKind::RenderGif;
         else if (value == "render last")
-            kind = config::RenderKind::RenderLast;
+            kind = RenderKind::RenderLast;
         else
             return false;
 
@@ -125,13 +135,13 @@ template <> struct convert<RenderKind> {
     static Node encode(const RenderKind& kind) {
         Node node;
 
-        if (kind == config::RenderKind::OutputLast)
+        if (kind == RenderKind::OutputLast)
             node = "output last";
-        else if (kind == config::RenderKind::OutputAll)
+        else if (kind == RenderKind::OutputAll)
             node = "output all";
-        else if (kind == config::RenderKind::RenderLast)
+        else if (kind == RenderKind::RenderLast)
             node = "render last";
-        else if (kind == config::RenderKind::RenderGif)
+        else if (kind == RenderKind::RenderGif)
             node = "render all";
 
         return node;
@@ -145,9 +155,9 @@ template <> struct convert<SolvingMethod> {
 
         auto value = node.as<std::string>();
         if (value == "explicit")
-            method = config::SolvingMethod::Explicit;
+            method = SolvingMethod::Explicit;
         else if (value == "implicit")
-            method = config::SolvingMethod::Implicit;
+            method = SolvingMethod::Implicit;
         else
             return false;
         return true;
@@ -155,9 +165,9 @@ template <> struct convert<SolvingMethod> {
 
     static Node encode(const SolvingMethod &method) {
         Node node;
-        if (method == config::SolvingMethod::Explicit)
+        if (method == SolvingMethod::Explicit)
             node = "explicit";
-        else if (method == config::SolvingMethod::Implicit)
+        else if (method == SolvingMethod::Implicit)
             node = "implicit";
 
         return node;

@@ -1,12 +1,5 @@
 #pragma once
 
-#include <ostream>
-#include <iomanip>
-#if USE_OPEN_MP
-#include <omp.h>
-#endif
-
-#include "ProgressBar.h"
 #include "mesh.h"
 
 template <typename T> using Tensor3 = Eigen::VectorX<Eigen::MatrixX<T>>;
@@ -19,7 +12,6 @@ struct Solution {
 class Solver {
     using Index = Eigen::Vector2i;
 
-  private:
     Tensor3<Node> T;
     Tensor3<double> SavedTemperatures;
     double step;
@@ -29,9 +21,9 @@ class Solver {
     Eigen::MatrixXd meshCoeffs;
     Eigen::VectorXd meshFreeCoeffs;
 
-    double explicitCentralDifference(const Index &index);
-    double applyBorderConvection(const Index &index);
-    double applyBorderInsulation(const Index &index);
+    [[nodiscard]] double explicitCentralDifference(const Index &index) const;
+    [[nodiscard]] double applyBorderConvection(const Index &index) const;
+    [[nodiscard]] double applyBorderInsulation(const Index &index) const ;
     void implicitCentralDifference();
     [[nodiscard]] Eigen::MatrixXd buildCoefficientMatrix() const;
     [[nodiscard]] Eigen::VectorXd buildFreeDicksVector() const;
@@ -50,29 +42,28 @@ class Solver {
 template <config::SolvingMethod Type> void Solver::solveNextLayer() {
     using namespace EnumBitmask;
 
-    auto rows = T(0).rows();
-    auto cols = T(0).cols();
+    const auto rows = T(0).rows();
+    const auto cols = T(0).cols();
 
+#pragma omp parallel for default(none) shared(rows, cols)
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
-            auto &node = T(1)(i, j);
-            if (EnumBitmask::contains(params.border.Heat, node.part)) {
-                node.t = 100;
-                if (node.part == ObjectBound::R2)
-                    node.t = 200;
-            } else if (EnumBitmask::contains(params.border.Convection, node.part))
-                node.t = applyBorderConvection({i, j});
-            else if (EnumBitmask::contains(params.border.ThermalInsulation, node.part))
-                node.t = applyBorderInsulation({i, j});
-            else if (!EnumBitmask::contains(ObjectBounds::Outer, node.part))
+            auto &[t, part, _] = T(1)(i, j);
+            if (contains(params.border.Heat, part)) {
+                t = 100;
+                if (part == ObjectBound::R2)
+                    t = 200;
+            } else if (contains(params.border.Convection, part))
+                t = applyBorderConvection({i, j});
+            else if (contains(params.border.ThermalInsulation, part))
+                t = applyBorderInsulation({i, j});
+            else if (!contains(ObjectBounds::Outer, part))
                 if constexpr (Type == config::SolvingMethod::Explicit)
-                    node.t = explicitCentralDifference({i, j});
+                    t = explicitCentralDifference({i, j});
         }
 
     if constexpr (Type == config::SolvingMethod::Implicit)
         implicitCentralDifference();
 
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++)
-            T(0)(i, j).t = T(1)(i, j).t;
+    T(0).swap(T(1));
 }

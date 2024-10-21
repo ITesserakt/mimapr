@@ -13,7 +13,7 @@ add_executable(main src/main.cpp src/config.cpp src/mesh.cpp src/Solver.cpp src/
 
 find_package(OpenMP)
 if (${OpenMP_FOUND})
-    target_link_libraries(main PRIVATE ${OpenMP_LIBRARIES})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     target_include_directories(main PRIVATE ${OpenMP_INCLUDE_DIRS})
     target_compile_definitions(main PRIVATE USE_OPEN_MP)
 endif ()

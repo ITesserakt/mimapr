@@ -5,5 +5,6 @@
   	cmake
   	gnumake
   	clang
+  	llvmPackages.openmp
   ];
 }

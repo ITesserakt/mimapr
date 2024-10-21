@@ -29,24 +29,24 @@ struct BorderConditions {
 };
 
 struct TaskParameters {
-private:
+  private:
     TaskParameters(HoleOptions hole, const BorderConditions &border) : hole(std::move(hole)), border(border) {}
 
-public:
+  public:
     HoleOptions hole;
     BorderConditions border;
 
     static TaskParameters GenerateForVariant(size_t variant);
 };
 
-enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast };
+enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast, RenderVideo };
 enum class SolvingMethod { Explicit, Implicit };
 
 struct Constants {
     int TimeLayers = 100;
     double DeltaTime = 0.1;
-    double Height = 400;
-    double Width = 500;
+    unsigned int Height = 400;
+    unsigned int Width = 500;
     double Radius2 = 150;
     double Radius1 = 50;
     double SquareSide = 100;
@@ -72,8 +72,7 @@ template <> struct convert<Constants> {
     static Node encode(const Constants &rhs) {
         Node node;
 
-#define IfNotDefault(field, name)                                              \
-    node[name] = rhs.field
+#define IfNotDefault(field, name) node[name] = rhs.field
 
         IfNotDefault(Variant, "variant");
         IfNotDefault(GridStep, "grid_step");
@@ -98,8 +97,8 @@ template <> struct convert<Constants> {
         rhs.GridStep = node["grid_step"].as<double>(rhs.GridStep);
         rhs.TimeLayers = node["time_layers"].as<int>(rhs.TimeLayers);
         rhs.DeltaTime = node["delta_time"].as<double>(rhs.DeltaTime);
-        rhs.Height = node["height"].as<double>(rhs.Height);
-        rhs.Width = node["width"].as<double>(rhs.Width);
+        rhs.Height = node["height"].as<decltype(rhs.Height)>(rhs.Height);
+        rhs.Width = node["width"].as<decltype(rhs.Width)>(rhs.Width);
         rhs.Radius2 = node["big_radius"].as<double>(rhs.Radius2);
         rhs.Radius1 = node["radius_hole"].as<double>(rhs.Radius1);
         rhs.SquareSide = node["square_size"].as<double>(rhs.SquareSide);
@@ -117,7 +116,7 @@ template <> struct convert<RenderKind> {
         if (!node.IsScalar())
             return false;
 
-        auto value = node.as<std::string>();
+        const auto value = node.as<std::string>();
         if (value == "output all")
             kind = RenderKind::OutputAll;
         else if (value == "output last")
@@ -126,25 +125,29 @@ template <> struct convert<RenderKind> {
             kind = RenderKind::RenderGif;
         else if (value == "render last")
             kind = RenderKind::RenderLast;
+        else if (value == "render video")
+            kind = RenderKind::RenderVideo;
         else
             return false;
 
         return true;
     }
 
-    static Node encode(const RenderKind& kind) {
-        Node node;
-
-        if (kind == RenderKind::OutputLast)
-            node = "output last";
-        else if (kind == RenderKind::OutputAll)
-            node = "output all";
-        else if (kind == RenderKind::RenderLast)
-            node = "render last";
-        else if (kind == RenderKind::RenderGif)
-            node = "render all";
-
-        return node;
+    static Node encode(const RenderKind &kind) {
+        switch (kind) {
+        case RenderKind::OutputAll:
+            return Node{"output all"};
+        case RenderKind::OutputLast:
+            return Node{"output last"};
+        case RenderKind::RenderGif:
+            return Node{"render all"};
+        case RenderKind::RenderLast:
+            return Node{"render last"};
+        case RenderKind::RenderVideo:
+            return Node{"render video"};
+        default:
+            return Node{"unknown"};
+        }
     }
 };
 

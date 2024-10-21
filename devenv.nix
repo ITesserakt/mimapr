@@ -6,5 +6,6 @@
   	gnumake
   	clang
   	llvmPackages.openmp
+  	ffmpeg
   ];
 }

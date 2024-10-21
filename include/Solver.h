@@ -5,7 +5,7 @@
 template <typename T> using Tensor3 = Eigen::VectorX<Eigen::MatrixX<T>>;
 
 struct Solution {
-    Tensor3<double> timeMesh;
+    Tensor3<float> timeMesh;
     double step;
 };
 
@@ -13,7 +13,7 @@ class Solver {
     using Index = Eigen::Vector2i;
 
     Tensor3<Node> T;
-    Tensor3<double> SavedTemperatures;
+    Tensor3<float> SavedTemperatures;
     double step;
     config::TaskParameters params;
     int SizeT;

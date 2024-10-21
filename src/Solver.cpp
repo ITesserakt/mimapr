@@ -24,7 +24,8 @@ Solver::Solver(Mesh &&mesh, const config::Constants &consts)
             }
     }
 
-    if (consts.Kind == config::RenderKind::RenderGif || consts.Kind == config::RenderKind::OutputAll)
+    if (consts.Kind == config::RenderKind::RenderGif || consts.Kind == config::RenderKind::OutputAll ||
+        consts.Kind == config::RenderKind::RenderVideo)
         SavedTemperatures.resize(consts.TimeLayers);
     else
         SavedTemperatures.resize(1);
@@ -180,7 +181,7 @@ Solution Solver::solveExplicit() {
     ProgressBar bar{static_cast<float>(SizeT - 1)};
     for (int currentTime = 0; currentTime < SizeT - 1; currentTime++, bar++) {
         if (SavedTemperatures.size() != 1)
-            SavedTemperatures(currentTime) = T(0).cast<double>();
+            SavedTemperatures(currentTime) = T(0).cast<float>();
 
         std::cout << bar;
         solveNextLayer<config::SolvingMethod::Explicit>();
@@ -188,7 +189,7 @@ Solution Solver::solveExplicit() {
     std::cout << "\n";
 
     if (SavedTemperatures.size() == 1)
-        SavedTemperatures(0) = T(0).cast<double>();
+        SavedTemperatures(0) = T(0).cast<float>();
 
     return {std::move(SavedTemperatures), step};
 }
@@ -200,7 +201,7 @@ Solution Solver::solveImplicit() {
     ProgressBar bar{static_cast<float>(SizeT - 1)};
     for (int currentTime = 0; currentTime < SizeT - 1; currentTime++, bar++) {
         if (SavedTemperatures.size() != 1)
-            SavedTemperatures(currentTime) = T(0).cast<double>();
+            SavedTemperatures(currentTime) = T(0).cast<float>();
 
         std::cout << bar;
         solveNextLayer<config::SolvingMethod::Implicit>();
@@ -208,7 +209,7 @@ Solution Solver::solveImplicit() {
     std::cout << "\n";
 
     if (SavedTemperatures.size() == 1)
-        SavedTemperatures(0) = T(0).cast<double>();
+        SavedTemperatures(0) = T(0).cast<float>();
 
     return {std::move(SavedTemperatures), step};
 }

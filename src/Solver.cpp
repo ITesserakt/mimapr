@@ -86,7 +86,7 @@ double Solver::applyBorderConvection(const Index &index) {
     auto dxdy = G - E - F + node;
 
     auto normal = -antiNormal;
-    double result;
+    double result = 0.0;
     if (normal.x() != 0)
         result += 1. / normal.x() * (gradX - dxdy * normal.y());
     if (normal.y() != 0)

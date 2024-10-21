@@ -7,7 +7,7 @@
 #include "mesh.h"
 
 Mesh::Mesh(const config::TaskParameters &params, const config::Constants &consts)
-    : H(consts.Height), W(consts.Width), R1(consts.Radius1), R2(consts.Radius2), S(consts.SquareSide) {
+    : R2(consts.Radius2), H(consts.Height), W(consts.Width), R1(consts.Radius1), S(consts.SquareSide) {
     this->step = consts.GridStep;
     this->params = params;
 

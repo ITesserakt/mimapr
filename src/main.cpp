@@ -82,6 +82,10 @@ int main() {
     if (!constants.isDefault())
         std::cerr << "Using non-default constant values:\n" << yaml["constants"] << std::endl;
 
+    if (auto step = getenv("GRID_STEP"); step != nullptr) {
+        auto step_num = std::stod(step);
+        constants.GridStep = step_num;
+    }
 #ifdef USE_OPEN_MP
     if (getenv("OMP_NUM_THREADS") == nullptr) {
         omp_set_num_threads(constants.Parallelism);

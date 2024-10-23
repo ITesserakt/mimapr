@@ -39,7 +39,7 @@ struct TaskParameters {
     static TaskParameters GenerateForVariant(size_t variant);
 };
 
-enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast, RenderVideo };
+enum class RenderKind { OutputAll, OutputLast, RenderGif, RenderLast, RenderVideo, NoOutput };
 enum class SolvingMethod { Explicit, Implicit };
 
 struct Constants {
@@ -127,6 +127,8 @@ template <> struct convert<RenderKind> {
             kind = RenderKind::RenderLast;
         else if (value == "render video")
             kind = RenderKind::RenderVideo;
+        else if (value == "no output")
+            kind = RenderKind::NoOutput;
         else
             return false;
 
@@ -145,6 +147,8 @@ template <> struct convert<RenderKind> {
             return Node{"render last"};
         case RenderKind::RenderVideo:
             return Node{"render video"};
+        case RenderKind::NoOutput:
+            return Node{"no output"};
         default:
             return Node{"unknown"};
         }

@@ -7,5 +7,6 @@
   	clang
   	llvmPackages.openmp
   	ffmpeg
+  	hyperfine
   ];
 }

@@ -68,6 +68,8 @@ void process_solution(const config::Constants &constants, const Solution &soluti
             auto handle = frameWriter.write(heatmap_cs_Spectral_soft);
             ffmpeg.send_frame(reinterpret_cast<const std::uint32_t *>(handle.Data));
         }
+    } else if (constants.Kind == config::RenderKind::NoOutput) {
+        // noop
     }
 }
 
@@ -81,7 +83,9 @@ int main() {
         std::cerr << "Using non-default constant values:\n" << yaml["constants"] << std::endl;
 
 #ifdef USE_OPEN_MP
-    omp_set_num_threads(constants.Parallelism);
+    if (getenv("OMP_NUM_THREADS") == nullptr) {
+        omp_set_num_threads(constants.Parallelism);
+    }
 #endif
 
     auto params = config::TaskParameters::GenerateForVariant(constants.Variant - 1);

@@ -45,7 +45,7 @@ template <config::SolvingMethod Type> void Solver::solveNextLayer() {
     const auto rows = T(0).rows();
     const auto cols = T(0).cols();
 
-#pragma omp parallel for default(none) shared(rows, cols)
+#pragma omp parallel for shared(rows, cols)
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
             auto &[t, part, _] = T(1)(i, j);
